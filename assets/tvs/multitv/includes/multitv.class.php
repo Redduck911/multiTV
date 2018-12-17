@@ -47,6 +47,10 @@ class multiTV
     public $options = array();
     private $modx;
 
+    public $params = [];
+    private $_prepareStore;
+    private $_prepareFunctions;
+    private $_prepareWrapFunctions;
 
     function __construct(&$modx, $options)
     {
@@ -287,6 +291,9 @@ class multiTV
         $this->configuration['editBoxWidth'] = isset($settings['configuration']['editBoxWidth']) ? $settings['configuration']['editBoxWidth'] : '';
         $this->configuration['css'] = (isset($settings['configuration']['css']) && !empty($settings['configuration']['css'])) ? explode(',', $settings['configuration']['css']) : array();
         $this->configuration['scripts'] = (isset($settings['configuration']['scripts']) && !empty($settings['configuration']['scripts'])) ? explode(',', $settings['configuration']['scripts']) : array();
+
+        $this->configuration['prepare'] = isset($settings['prepare']) ? $settings['prepare'] : null;
+        $this->configuration['prepareWrap'] = isset($settings['prepareWrap']) ? $settings['prepareWrap'] : null;
     }
 
     function prepareValue($value)
@@ -362,12 +369,20 @@ class multiTV
             case 'url' :
                 $fieldType = 'text';
                 break;
+            case 'color' :
+                $fieldType = 'text';
+                break;
             case 'unixtime' :
                 $fieldType = 'date';
                 break;
             case 'image' :
                 if ($this->display == 'datatable' || $this->display == 'dbtatable' || $this->display == 'vertical' || $this->display == 'horizontal') {
                     $fieldClass[] = 'mtvImage';
+                }
+                break;
+            case 'file':
+                if ($this->display == 'datatable' || $this->display == 'dbtatable' || $this->display == 'vertical' || $this->display == 'horizontal') {
+                    $fieldClass[] = 'mtvFile';
                 }
                 break;
             case 'richtext' :
@@ -422,7 +437,7 @@ class multiTV
             }
             $formElement = $formElement . $currentScript[1]; // move the script tag to the end
         }
-        preg_match('/<.*class=\"([^\"]*)/s', $formElement, $currentClass); // get current classes
+        preg_match('/<.*?class=\"([^\"]*)/s', $formElement, $currentClass); // get current classes
         $formElement = preg_replace('/class=\"[^\"]*\"/s', '', $formElement, 1); // remove all classes
         if ($fieldDefault != '') {
             $formElement = preg_replace('/(<\w+)/', '$1 alt="' . $fieldDefault . '"', $formElement, 1); // add alt to first tag (the input)
@@ -482,6 +497,9 @@ class multiTV
                             $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'inline mtv_date mtv_' . $fieldname, $default);
                             $tvcss .= '.multitv #[+tvid+]list li.element .inline.mtv_' . $fieldname . ' { margin-right: -21px }';
                             break;
+                        case 'color':
+                            $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'inline jscolor mtv_' . $fieldname, $default);
+                            break;
                         default:
                             $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'inline mtv_' . $fieldname, $default);
                     }
@@ -508,6 +526,10 @@ class multiTV
                             $tvelement[] = '<div class="mtvThumb" id="' . $tvid . $this->fields[$fieldname]['thumbof'] . '_mtvpreview"></div>';
                             $hasthumb = ' hasthumb';
                             break;
+                        case 'color':
+                            $tvelement[] = '<label for="' . $tvid . $fieldname . '">' . $this->fields[$fieldname]['caption'] . '</label>';
+                            $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'jscolor mtv_' . $fieldname, $default) . '<br />';
+                            break;
                         default:
                             $tvelement[] = '<label for="' . $tvid . $fieldname . '">' . $this->fields[$fieldname]['caption'] . '</label>';
                             $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'mtv_' . $fieldname, $default) . '<br />';
@@ -530,6 +552,10 @@ class multiTV
                         case 'thumb':
                             $tvelement[] = '<div class="mtvThumb" id="' . $tvid . $this->fields[$fieldname]['thumbof'] . '_mtvpreview"></div>';
                             $hasthumb = ' hasthumb';
+                            break;
+                        case 'color':
+                            $tvelement[] = '<label for="' . $tvid . $fieldname . '">' . $this->fields[$fieldname]['caption'] . '</label>';
+                            $tvelement[] = $this->renderMultiTVFormElement($type, $fieldname, $elements, 'jscolor mtv_' . $fieldname, $default) . '<br />';
                             break;
                         default:
                             $tvelement[] = '<label for="' . $tvid . $fieldname . '">' . $this->fields[$fieldname]['caption'] . '</label>';
@@ -599,6 +625,10 @@ class multiTV
                         switch ($type) {
                             case 'thumb':
                                 $tvElements[] = '<div class="mtvThumb" id="' . $tvid . $this->fields[$fieldname]['thumbof'] . '_mtvpreview"></div>';
+                                break;
+                            case 'color':
+                                $tvelement[] = '<label for="' . $tvid . $fieldname . '">' . $caption . '</label>'.
+                                $this->renderMultiTVFormElement($type, $fieldname, $elements, 'jscolor mtv_' . $fieldname, $default) . "\r\n";
                                 break;
                             default:
                                 $tvElements[] = '<label for="' . $tvid . $fieldname . '">' . $caption . '</label>' .
@@ -676,6 +706,8 @@ class multiTV
             $placeholder['edit'] = $this->loadTemplate('edit');
             $placeholder['editform'] = implode("\n", $tvelement);
         } else {
+            $files['scripts'] = array_merge($files['scripts'], $settings['scripts'], $this->configuration['scripts']);
+            $files['css'] = array_merge($files['css'], $settings['css'], $this->configuration['css']);
             $placeholder['data'] = $this->loadTemplate('sortablelist');
             $placeholder['script'] = $this->loadTemplate('sortablelistScript' . $this->cmsinfo['clipper']);
         }
@@ -778,6 +810,10 @@ class multiTV
                 switch ($type) {
                     case 'thumb':
                         $tvElements[] = '<div class="mtvThumb" id="' . $config['table'] . $this->fields[$fieldname]['thumbof'] . '_mtvpreview"></div>';
+                        break;
+                    case 'color':
+                        $tvElements[] = '<label for="' . $config['table'] . $fieldname . '_mtv">' . $caption . '</label>' .
+                        $this->renderMultiTVFormElement($type, $fieldname, $elements, 'jscolor mtv_' . $fieldname, $default) . "\r\n";
                         break;
                     default:
                         $tvElements[] = '<label for="' . $config['table'] . $fieldname . '_mtv">' . $caption . '</label>' .
@@ -1019,6 +1055,22 @@ class multiTV
                             unset($tvOutput[$tvKey]);
                         }
                     }
+                    break;  
+                case 'IN':
+                    $value = explode(',', $value);
+                    foreach ($tvOutput as $tvKey => $tvOut) {
+                        if (!in_array($tvOut[$fieldname], $value)) {
+                            unset($tvOutput[$tvKey]);
+                        }
+                    }
+                    break;  
+                case 'NOT IN':
+                    $value = explode(',', $value);
+                    foreach ($tvOutput as $tvKey => $tvOut) {
+                        if (in_array($tvOut[$fieldname], $value)) {
+                            unset($tvOutput[$tvKey]);
+                        }
+                    }
                     break;
             }
         }
@@ -1027,12 +1079,15 @@ class multiTV
 
     function displayMultiValue($tvOutput, $params)
     {
+        $this->initializePrepare($params);
+
         // replace masked placeholder tags (for templates that are set directly set in snippet call by @CODE)
         $maskedTags = array('((' => '[+', '))' => '+]');
         $params['outerTpl'] = str_replace(array_keys($maskedTags), array_values($maskedTags), $params['outerTpl']);
         $params['rowTpl'] = str_replace(array_keys($maskedTags), array_values($maskedTags), $params['rowTpl']);
-
-        $countOutput = count($tvOutput);
+        if(is_array($tvOutput)){ 
+            $countOutput = count($tvOutput);
+        }
         $firstEmpty = true;
         if ($countOutput) {
             // check for first item empty
@@ -1080,7 +1135,8 @@ class multiTV
 
         // output
         $wrapper = array();
-        $i = $iteration = 1;
+        $i = 1;
+        $iteration = $params['iterationStart'];
         $classes = array($params['firstClass']);
         // rowTpl output
         foreach ($tvOutput as $value) {
@@ -1098,11 +1154,21 @@ class multiTV
                 $i++;
                 continue;
             }
+
+            $value = $this->prepareRow(array_merge([
+                'docid'     => $params['docid'],
+                'iteration' => $iteration,
+                'row'       => [
+                    'number' => $i,
+                    'total'  => $countOutput,
+                ],
+            ], $value));
+
             if (!$params['toJson']) {
                 if ($display == 1) {
                     $classes[] = $params['lastClass'];
                 }
-                if ($iteration % 2) {
+                if ($value['iteration'] % 2) {
                     $classes[] = $params['oddClass'];
                 } else {
                     $classes[] = $params['evenClass'];
@@ -1112,9 +1178,9 @@ class multiTV
                     $fieldname = (is_int($key)) ? $this->fieldnames[$key] : $key;
                     $parser->setPlaceholder($fieldname, $fieldvalue);
                 }
-                $parser->setPlaceholder('iteration', $iteration);
-                $parser->setPlaceholder('row', array('number' => $i, 'class' => implode(' ', $classes), 'total' => $countOutput));
-                $parser->setPlaceholder('docid', $params['docid']);
+                $parser->setPlaceholder('iteration', $value['iteration']);
+                $parser->setPlaceholder('row', array_merge($value['row'], ['class' => implode(' ', $classes)]));
+                $parser->setPlaceholder('docid', $value['docid']);
                 $parser->setTpl($parser->getTemplateChunk($params['rowTpl']));
                 $parser->prepareTemplate();
                 $placeholder = $parser->process();
@@ -1124,6 +1190,9 @@ class multiTV
                 $wrapper[] = $placeholder;
                 $classes = array();
             } else {
+                unset($value['iteration']);
+                unset($value['docid']);
+                unset($value['row']);
                 $wrapper[] = $value;
             }
             $i++;
@@ -1135,11 +1204,20 @@ class multiTV
             $output = '';
         } else {
             if (!$params['toJson']) {
+                $wrap = $this->prepareWrap([
+                    'docid'   => $params['docid'],
+                    'wrapper' => $wrapper,
+                    'rows'    => [
+                        'offset' => $params['offset'],
+                        'total'  => $countOutput,
+                    ],
+                ]);
+
                 // wrap rowTpl output in outerTpl
                 $parser = new newChunkie($this->modx);
-                $parser->setPlaceholder('wrapper', implode($params['outputSeparator'], $wrapper));
-                $parser->setPlaceholder('rows', array('offset' => $params['offset'], 'total' => $countOutput));
-                $parser->setPlaceholder('docid', $params['docid']);
+                $parser->setPlaceholder('wrapper', implode($params['outputSeparator'], $wrap['wrapper']));
+                $parser->setPlaceholder('rows', $wrap['rows']);
+                $parser->setPlaceholder('docid', $wrap['docid']);
                 if ($params['paginate']) {
                     $pagination = new Pagination(array(
                         'per_page' => $limit,
@@ -1206,4 +1284,84 @@ class multiTV
         }
     }
 
+    public function setStore($key, $value)
+    {
+        $this->_prepareStore[$key] = $value;
+    }
+
+    public function getStore($key)
+    {
+        if (isset($this->_prepareStore[$key])) {
+            return $this->_prepareStore[$key];
+        }
+
+        return null;
+    }
+
+    public function initializePrepare($params)
+    {
+        $this->params = $params;
+        $this->_prepareStore = [];
+        $this->_prepareFunctions = [];
+        $this->_prepareWrapFunctions = [];
+
+        foreach (['_prepareFunctions' => 'prepare', '_prepareWrapFunctions' => 'prepareWrap'] as $attribute => $parameter) {
+            $functions = [
+                !empty($this->configuration[$parameter]) ? $this->configuration[$parameter] : [],
+                !empty($params[$parameter]) ? $params[$parameter] : [],
+            ];
+
+            $prepare = [];
+
+            foreach ($functions as $item) {
+                if (is_scalar($item)) {
+                    $prepare = array_merge($prepare, explode(',', $item));
+                } else if ($item instanceof Closure) {
+                    $prepare = array_merge($prepare, [$item]);
+                } else if (is_array($item)) {
+                    $prepare = array_merge($prepare, $item);
+                }
+            }
+
+            $this->{$attribute} = $prepare;
+        }
+    }
+
+    public function doPrepare($functions, $params) {
+        foreach ($functions as $function) {
+            if (is_callable($function)) {
+                $params['data'] = call_user_func_array($function, $params);
+            } else {
+                $params['data'] = $this->modx->runSnippet($function, $params);
+            }
+        }
+
+        return $params['data'];
+    }
+
+    public function prepareRow($data)
+    {
+        if (empty($this->_prepareFunctions)) {
+            return $data;
+        }
+
+        return $this->doPrepare($this->_prepareFunctions, [
+            'data'     => $data,
+            'modx'     => $this->modx,
+            '_multiTV' => $this,
+        ]);
+    }
+
+    public function prepareWrap($data)
+    {
+        if (empty($this->_prepareWrapFunctions)) {
+            return $data;
+        }
+
+        return $this->doPrepare($this->_prepareWrapFunctions, [
+            'data'     => $data,
+            'modx'     => $this->modx,
+            '_multiTV' => $this,
+        ]);
+    }
 }

@@ -236,6 +236,18 @@
                 _this.data.settings.autoincrement = 1;
             }
         },
+        updateColor: function(el, value, hide) {
+            el.val(value).attr('value',value);
+
+            var color = '#' + value + '!important';
+            el.attr('style', 'background-color: ' + color);
+
+            if (hide === true) {
+                el.ColorPickerHide();
+            }
+
+            el.val(value).attr('value', value).change();
+        },
         addElementEvents: function (el) {
             var _this = this;
 
@@ -257,6 +269,22 @@
                 var field = $(this).prev('input').attr('id');
                 BrowseFileServer(field);
             });
+
+            //color
+            $('.jscolor', el).ColorPicker({
+                    onSubmit: function(hsb, hex, rgb, el) {
+                        _this.updateColor($(el), hex, true);
+                    },
+                    onChange: function(hsb, hex, rgb) {
+                        _this.updateColor($(this.data('colorpicker').el), hex);
+                    },
+                    onBeforeShow: function () {
+                        $(this).ColorPickerSetColor(this.value);
+                    }
+                })
+                .bind('keyup', function(){
+                    $(this).ColorPickerSetColor(this.value);
+                });
 
             // image field browser
             $('.browseimage', el).click(function (e) {
@@ -405,7 +433,7 @@
         },
         initRichtext: function(el, _this) {
             //Dmi3yy add inline tinyMCE
-            if (typeof tinyMCE !== 'undefined' && _this.options.mode == 'vertical' ) {
+            if (typeof tinyMCE !== 'undefined' && (_this.options.mode == 'vertical' || _this.options.mode == 'single') ) {
                 $('.inlineTabEditor:not(.initialized)', el).each(function () {
                     $(this).addClass('initialized');
                     var editorId = $(this).attr('id');
@@ -650,10 +678,10 @@
         this.fieldPaste = $('#' + this.tvid + 'paste');
         this.fieldEditForm = $('#' + this.tvid + 'editform');
         this.fieldEditArea = $('#' + this.tvid + 'editarea');
-        this.tableAppend = '<img alt="' + this.options.language.append + ' " src="../' + this.options.mtvpath + 'css/images/add.png" /> ' + this.options.language.append;
-        this.tableEdit = '<img alt="' + this.options.language.edit + ' " src="../' + this.options.mtvpath + 'css/images/application_form_edit.png" /> ' + this.options.language.edit;
-        this.tableRemove = '<img alt="' + this.options.language.remove + ' " src="../' + this.options.mtvpath + 'css/images/delete.png" /> ' + this.options.language.remove;
-        this.tableDuplicate = '<img alt="' + this.options.language.duplicate + ' " src="../' + this.options.mtvpath + 'css/images/copy.gif" /> ' + this.options.language.duplicate;
+		this.tableAppend    = '<span class="fa fa-fw fa-plus"></span> '  + this.options.language.append;
+		this.tableEdit      = '<span class="fa fa-fw fa-edit"></span> '  + this.options.language.edit;
+		this.tableRemove    = '<span class="fa fa-fw fa-trash"></span> ' + this.options.language.remove;
+		this.tableDuplicate = '<span class="fa fa-fw fa-clone"></span> ' + this.options.language.duplicate;
         this.tableButtons = $('<ul>').addClass('actionButtons');
         this.tableButtonAppend = $('<li>').attr('id', this.tvid + 'tableAppend').append($('<a>').attr('href', '#').html(this.tableAppend));
         this.tableButtonEdit = $('<li>').attr('id', this.tvid + 'tableEdit').append($('<a>').attr('href', '#').addClass('disabled').html(this.tableEdit));
@@ -937,6 +965,18 @@
                 $(thumbId, el).html('');
             }
         },
+        updateColor: function(el, value, hide) {
+            el.val(value).attr('value',value);
+
+            var color = '#' + value + '!important';
+            el.attr('style', 'background-color: ' + color);
+
+            if (hide === true) {
+                el.ColorPickerHide();
+            }
+
+            el.val(value).attr('value', value).change();
+        },
         addElementEvents: function (el) {
             var _this = this;
 
@@ -958,6 +998,22 @@
                 BrowseFileServer(field);
                 return false;
             });
+            
+            //color
+            $('.jscolor', el).ColorPicker({
+                    onSubmit: function(hsb, hex, rgb, el) {
+                        _this.updateColor($(el), hex, true);
+                    },
+                    onChange: function(hsb, hex, rgb) {
+                        _this.updateColor($(this.data('colorpicker').el), hex);
+                    },
+                    onBeforeShow: function () {
+                        $(this).ColorPickerSetColor(this.value);
+                    }
+                })
+                .bind('keyup', function(){
+                    $(this).ColorPickerSetColor(this.value);
+                });
 
             // image field browser
             $('.browseimage', el).click(function () {
